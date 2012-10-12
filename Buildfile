@@ -35,14 +35,16 @@ COMMONS_LOGGING   = 'commons-logging:commons-logging:jar:1.1.1'
 ROME              = 'rome:rome:jar:1.0'
 ASM               = "asm:asm:jar:#{ASM_VERSION}"
 ASM_COMMONS       = "asm:asm-commons:jar:#{ASM_VERSION}"
+COMMONS_IO        = "commons-io:commons-io:jar:2.4"
 COMPILE_ARTIFACTS = [ASM, ASM_COMMONS, COMMONS_LOGGING, FREEMARKER, JAVAMAIL,
-                    JAVAUTIL, JDOM, ROME]
+                    JAVAUTIL, JDOM, ROME, COMMONS_IO]
 IZPACK_VERSION    = '4.3.5'
 IZPACK            = "org.codehaus.izpack:izpack-standalone-compiler:jar:#{IZPACK_VERSION}"
 
 # Some local tasks and task aliases
 Project.local_task :installer
 Project.local_task :copydoc
+Project.local_task :devinstall
 
 define 'curn' do
   project.version = CURN_VERSION
@@ -55,17 +57,20 @@ define 'curn' do
   # Compilation
   compile.using :target => '1.6', :lint => 'all', :deprecation => true
   compile.with ASM, ASM_COMMONS, COMMONS_LOGGING, FREEMARKER, JAVAMAIL,
-               JAVAUTIL, JDOM, ROME
+               JAVAUTIL, JDOM, ROME, COMMONS_IO
   # Main jar
   package(:jar, :id => CURN_JAR_NAME).
     exclude(_('target/classes/**/Bootstrap*.class')).
-    exclude(_('target/classes/**/plugins/*.class'))
+    exclude(_('target/classes/**/plugins/*.class')).
+    exclude(_('target/resources/**/*.ftl'))
 
   # Plugins jar
   package(:jar, :id => CURN_PLUGINS_JAR_NAME).
     clean.
     include('target/classes/org/clapper/curn/plugins',
-            :as => 'org/clapper/curn/plugins')
+            :as => 'org/clapper/curn/plugins').
+    include('target/resources/org/clapper/curn/output/freemarker',
+            :as => 'org/clapper/curn/output/freemarker')
 
   # Bootstrap jar
   package(:jar, :id => CURN_BOOT_JAR_NAME).
@@ -157,6 +162,16 @@ define 'curn' do
   task :installerxml do
   end
 
+  task :devinstall => :compile do
+      FileUtils.mkdir_p "target/fake_install/lib"
+      FileUtils.mkdir_p "target/fake_install/plugins"
+      cp "target/#{CURN_JAR_NAME}-#{version}.jar", 'target/fake_install/lib/curn.jar'
+      cp "target/#{CURN_BOOT_JAR_NAME}-#{version}.jar", 'target/fake_install/lib/curnboot.jar'
+      cp "target/#{CURN_PLUGINS_JAR_NAME}-#{version}.jar", 'target/fake_install/plugins/curn-plugins.jar'
+      compile.dependencies.each do |d|
+        cp d.to_s, 'target/fake_install/lib'
+      end
+  end
 end
 
 

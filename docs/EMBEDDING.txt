@@ -1,0 +1,32 @@
+12 Oct 2012
+Benson Margulies
+
+Curn, in general, is set up to be operated from a cron job. It has a
+command line, and the overall flow is to grab any new content from the
+defined feeds and then exit.
+
+Literally embedding it into some larger Java application is not a good
+idea. Feed servers are not always well-behaved, and the code in curn
+can end up stuck on one. In a cron environment, this might result in a
+pile-up of excess processes, or it might result in bigger problems if
+an output handler, for example, hangs on to a database connection.
+
+-Dsun.net.client.defaultReadTimeout=1000 can help with this.
+
+If you want to set up a 'curn daemon' that has more control than cron,
+you can launch processes via ProcessBuilder with the same arguments as
+you would use in cron.
+
+A bit of study of curn.sh will yield:
+
+java  -classpath $INSTALL_PATH/lib/curnboot.jar -ea -client $vm_opts 
+  -Dcurn.home=$INSTALL_PATH org.clapper.curn.Bootstrap 
+        $INSTALL_PATH/lib $INSTALL_PATH/plugins 
+      @user.home/curn/plugins 
+      @user.home/.curn/plugins 
+      @user.home/curn/lib 
+      @user.home/.curn/lib -- org.clapper.curn.Tool "${@}"
+
+Adding args (and setting up logging) as appropriate, you can then
+start a process and capture its output.
+

@@ -7,6 +7,7 @@
 # This software is released under a BSD-style license:
 #
 # Copyright (c) 2004-2009 Brian M. Clapper. All rights reserved.
+# Copyright (c) 2012 Basis Technology Corp.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -47,6 +48,7 @@
 # ---------------------------------------------------------------------------
 
 vm_opts=
+dev=false
 while [ $# -gt 0 ]
 do
     case "$1" in
@@ -54,6 +56,14 @@ do
             vm_opts="$vm_opts $1"
 	    shift
 	    ;;
+        -dev)
+            dev=true
+            shift
+            ;;
+        -debug)
+            vm_opts="$vm_opts -Xdebug -Xrunjdwp:transport=dt_socket,server=y,suspend=n,address=8000"
+            shift
+            ;;
         *)
 	    break
 	    ;;
@@ -63,6 +73,10 @@ done
 if [ "$CURN_JAVA_VM_ARGS" != "" ]
 then
     vm_opts="$vm_opts $CURN_JAVA_VM_ARGS"
+fi
+
+if [ $dev = "true" ] ; then
+    INSTALL_PATH=target/fake_install
 fi
 
 exec $JAVA_HOME/bin/java \

@@ -35,37 +35,33 @@
 
 package org.clapper.curn;
 
-import java.io.IOException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
+import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.Reader;
-import java.io.Writer;
-
+import java.io.OutputStream;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.net.MalformedURLException;
-import java.util.Date;
-import java.util.Iterator;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
+import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.GZIPInputStream;
 
+import org.apache.commons.io.IOUtils;
 import org.clapper.curn.parser.RSSChannel;
 import org.clapper.curn.parser.RSSItem;
 import org.clapper.curn.parser.RSSLink;
 import org.clapper.curn.parser.RSSParser;
 import org.clapper.curn.parser.RSSParserException;
-
-import org.clapper.util.io.FileUtil;
 import org.clapper.util.logging.Logger;
 import org.clapper.util.text.TextUtil;
+
+
 
 class FeedDownloadThread implements Runnable
 {
@@ -539,13 +535,15 @@ class FeedDownloadThread implements Runnable
                   tempFile.getPath());
 
         InputStream urlStream = getURLInputStream(conn);
-        Reader      reader;
-        Writer      writer;
 
-        // Determine the character set encoding to use.
+        /* Determine the character set encoding to use.
+         * When downloading, all we are doing is copying bytes.
+         * If we get an indication of encoding, we pass it along
+         * to Rome or whatnot to use in interpreting those bytes.
+         */
 
         String protocol = feedURL.getProtocol();
-        String encoding = null;
+        String encoding = null; // null unless we see some other indication.
 
         if (protocol.equals("http") || protocol.equals("https"))
         {
@@ -572,55 +570,29 @@ class FeedDownloadThread implements Runnable
                       "\" is \"" + encoding + "\"");
         }
 
-        // Set the forced encoding, if specified. Note: This is done after
-        // we check the HTTP encoding, so we can log any discrepancies
-        // between the config-specified encoding and the HTTP
-        // server-specified encoding.
-
-        String forcedEncoding = feedInfo.getForcedCharacterEncoding();
-        if (forcedEncoding != null)
+        if (feedInfo.getForcedCharacterEncoding() != null)
         {
-            log.debug("URL \"" + feedURLString +
-                      "\": Forcing encoding to be \"" + forcedEncoding +
-                      "\"");
-            encoding = forcedEncoding;
+            encoding = feedInfo.getForcedCharacterEncoding();
         }
 
-        if (encoding != null)
-        {
-            log.debug("Encoding is \"" + encoding + "\"");
-            reader = new InputStreamReader(urlStream, encoding);
-            writer = new OutputStreamWriter(new FileOutputStream(tempFile),
-                                            encoding);
-
-            /*
-            // Cheat by writing an encoding line to the temp file.
-            writer.write ("<?xml version=\"1.0\" encoding=\""
-            encoding
-                        + "\"> ");
-            */
+        OutputStream tempOutput = null;
+        try {
+            tempOutput = new FileOutputStream(tempFile);
+            totalBytes = IOUtils.copy(urlStream, tempOutput);
+        } finally {
+            IOUtils.closeQuietly(tempOutput);
+            IOUtils.closeQuietly(urlStream);
         }
-
-        else
-        {
-            InputStreamReader isr = new InputStreamReader(urlStream);
-            reader = isr;
-            writer = new FileWriter(tempFile);
-            log.debug("No encoding for \"" + feedURLString +
-                      "\". Using VM default of \"" + isr.getEncoding() + "\"");
-        }
-
-        totalBytes = FileUtil.copyReader(reader, writer);
-        log.debug("Total bytes downloaded: " + totalBytes);
-        writer.close();
-        urlStream.close();
 
         // It's possible for totalBytes to be zero if, for instance, the
         // use of the If-Modified-Since header caused an HTTP server to
         // return no content.
+        // It's possible for the encoding to be null if nothing gave us a clue.
 
         return new DownloadedTempFile(tempFile, encoding, totalBytes);
     }
+
+
 
     /**
      * Given a content-type header, extract the character set information.
