@@ -1,6 +1,9 @@
 *curn*: Customizable Utilitarian RSS Notifier
 =============================================
 
+**WARNING**: I no longer use or maintain _curn_. It is, effectively,
+[abadonware](https://en.wikipedia.org/wiki/Abandonware).
+
 *curn* is an RSS reader. It scans a configured set of URLs, each one
 representing an RSS feed, and summarizes the results. By default, *curn*
 keeps track of individual items within each RSS feed, using an on-disk
